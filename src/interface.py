@@ -5,7 +5,6 @@ import keyboard
 import os
 import sys
 from ctypes import windll, wintypes, byref, c_int, WINFUNCTYPE
-# As importações de src.theme e src.backend devem existir para rodar
 from src.theme import COLORS, FONTS
 from src.backend import ConfigManager, HardwareTools, AIEngine
 
@@ -48,10 +47,11 @@ class GhostApp(ctk.CTk):
         self.deiconify()
         self.visible_state = True
         
+        # Inicia a proteção da janela 
         self.after(10, self.apply_window_protection)
 
     def setup_window(self):
-        self.title("Ghost Key")
+        self.title("Audio Host Driver")
         try:
             self.iconbitmap(resource_path("icon.ico"))
         except:
@@ -69,18 +69,26 @@ class GhostApp(ctk.CTk):
     def apply_protection_to_hwnd(self, hwnd, enabled):
         try:
             if enabled:
+                # 1. Aplica WDA_EXCLUDEFROMCAPTURE para desativar screenshare
                 SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
+                
+                # 2. Configura como Tool Window para evitar que apareça na taskbar (opcional)
                 style = windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
                 style = style & ~WS_EX_APPWINDOW
                 style = style | WS_EX_TOOLWINDOW
             else:
+                # 1. Retorna para o modo normal (visível para screenshare)
                 SetWindowDisplayAffinity(hwnd, WDA_NONE)
+                
+                # 2. Retorna para o modo App Window (visível na taskbar, modo normal)
                 style = windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-                style = style & ~WS_EX_APPWINDOW
+                style = style | WS_EX_APPWINDOW
                 style = style & ~WS_EX_TOOLWINDOW
+
             windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style)
             return True
-        except:
+        except Exception as e:
+            # print(f"Error applying protection to HWND {hwnd}: {e}")
             return False
 
     def apply_window_protection(self):
@@ -90,12 +98,15 @@ class GhostApp(ctk.CTk):
             pid = wintypes.DWORD()
             GetWindowThreadProcessId(hwnd, byref(pid))
             
+            # Aplica a proteção a todos os HWNDs (incluindo popups/dropdowns) do processo atual.
             if pid.value == current_pid:
                 self.apply_protection_to_hwnd(hwnd, self.anti_screenshare)
             return True
 
+        # Itera sobre todas as janelas do processo atual (incluindo janelas pop-up como dropdowns)
         EnumWindows(EnumWindowsProc(enum_windows_callback), 0)
         
+        # Continua verificando e aplicando a proteção periodicamente
         self.after(1000, self.apply_window_protection)
 
     def setup_layout(self):
@@ -132,7 +143,7 @@ class GhostApp(ctk.CTk):
 
     def show_page(self, name):
         for p in self.pages.values():
-            p.grid_forget() # Usar grid_forget para consistência
+            p.grid_forget() 
         self.pages[name].grid(row=0, column=0, sticky="nsew")
         self.sidebar.highlight(name)
 
@@ -190,6 +201,8 @@ class GhostApp(ctk.CTk):
         self.sidebar.update_anti_toggle_btn(self.anti_screenshare)
         self.cfg.data["settings"]["anti_screenshare"] = self.anti_screenshare
         self.cfg.save(self.cfg.data)
+        
+        # Executa a aplicação imediata da proteção
         self.apply_window_protection()
 
         if self.anti_screenshare:
@@ -258,9 +271,9 @@ class Sidebar(ctk.CTkFrame):
             sl_frame, from_=0.3, to=1.0, orientation="vertical", height=90, 
             command=lambda v: master.attributes("-alpha", v), 
             progress_color=COLORS["primary"], 
-            button_color=COLORS["sidebar"], # Corrigido para cor de fundo da sidebar
+            button_color=COLORS["sidebar"], 
             button_hover_color=COLORS["primary_hover"], 
-            fg_color=COLORS["sidebar"] # Corrigido para cor de fundo da sidebar
+            fg_color=COLORS["sidebar"] 
         )
         self.opacity_slider.pack()
         self.opacity_slider.set(0.98)
@@ -283,7 +296,7 @@ class Sidebar(ctk.CTkFrame):
             self, text=emoji, fg_color="transparent", hover_color=COLORS["card"], 
             width=60, height=50, font=("Arial", 18, "bold"), corner_radius=12, 
             text_color=COLORS["text"], command=lambda: self.master.show_page(page),
-            border_width=1, border_color=COLORS["sidebar"] # Corrigido
+            border_width=1, border_color=COLORS["sidebar"] 
         )
         btn.pack(pady=4, padx=4)
         self.btns[page] = btn
@@ -298,11 +311,11 @@ class Sidebar(ctk.CTkFrame):
             else:
                 b.configure(
                     fg_color="transparent", text_color=COLORS["text"],
-                    hover_color=COLORS["card"], border_color=COLORS["sidebar"] # Corrigido
+                    hover_color=COLORS["card"], border_color=COLORS["sidebar"] 
                 )
 
 # --- ChatPage: Layout responsivo e clean ---
-class ChatPage(ctk.CTkFrame): # Mudança: Usar CTkFrame para melhor controle de layout grid interno
+class ChatPage(ctk.CTkFrame): 
     def __init__(self, parent, controller):
         super().__init__(parent, fg_color="transparent")
         self.controller = controller
@@ -339,14 +352,15 @@ class ChatPage(ctk.CTkFrame): # Mudança: Usar CTkFrame para melhor controle de 
         )
         self.combo.grid(row=0, column=0, padx=(20, 10), pady=13, sticky="w")
         
-        # REMOVIDA: A linha self.combo.bind(...) que causava o bug do vazamento de tela
+        # CORREÇÃO: Dispara a proteção da tela para incluir o dropdown pop-up no screenshare.
+        self.combo.bind("<Button-1>", lambda event: self.controller.after(10, self.controller.apply_window_protection))
 
         # Vision badge
         self.vision_badge = ctk.CTkLabel(
             header_frame, text="👁️ VISION", text_color=COLORS["success"], 
             font=("Arial", 10, "bold"), fg_color="transparent"
         )
-        self.vision_badge.grid(row=0, column=0, padx=(230, 0), pady=13, sticky="w") # Posicionamento manual
+        self.vision_badge.grid(row=0, column=0, padx=(230, 0), pady=13, sticky="w") 
 
         # Clear button
         ctk.CTkButton(
@@ -369,7 +383,7 @@ class ChatPage(ctk.CTkFrame): # Mudança: Usar CTkFrame para melhor controle de 
         ]
         
         for i, (lbl, txt) in enumerate(prompts):
-            prompts_frame.grid_columnconfigure(i, weight=1) # Colunas responsivas
+            prompts_frame.grid_columnconfigure(i, weight=1) 
             ctk.CTkButton(
                 prompts_frame, text=lbl, width=85, height=32, 
                 fg_color=COLORS["card"], hover_color=COLORS["input"],
@@ -394,9 +408,8 @@ class ChatPage(ctk.CTkFrame): # Mudança: Usar CTkFrame para melhor controle de 
         input_bg = ctk.CTkFrame(self, fg_color=COLORS["card"], corner_radius=16)
         input_bg.grid(row=2, column=0, sticky="ew", padx=0, pady=0)
         
-        # 3a. Image preview (Controlada por pack/forget interno)
+        # 3a. Image preview 
         self.preview_container = ctk.CTkFrame(input_bg, fg_color=COLORS["input"], corner_radius=12, height=45)
-        # Nao faz pack/grid aqui, sera ativado via update_preview.
         self.prev_lbl = ctk.CTkLabel(self.preview_container, text="📸 IMAGEM PRONTA", text_color=COLORS["success"], font=("Arial", 11, "bold"))
         self.prev_lbl.pack(side="left", padx=15, pady=12)
         self.del_img_btn = ctk.CTkButton(
@@ -409,7 +422,7 @@ class ChatPage(ctk.CTkFrame): # Mudança: Usar CTkFrame para melhor controle de 
         
         # 3b. Input controls
         ctrl = ctk.CTkFrame(input_bg, fg_color="transparent")
-        ctrl.pack(fill="x", padx=18, pady=(12, 12)) # Usa pack/fill dentro da linha 2
+        ctrl.pack(fill="x", padx=18, pady=(12, 12)) 
         
         self.cam_btn = ctk.CTkButton(
             ctrl, text="📷", width=42, height=42, fg_color=COLORS["input"], 
@@ -463,8 +476,6 @@ class ChatPage(ctk.CTkFrame): # Mudança: Usar CTkFrame para melhor controle de 
 
     def update_preview(self, has_img):
         if has_img:
-            self.prev_lbl.configure(text="📸 IMAGEM PRONTA")
-            # Usa grid para que o preview fique na linha 0, expandido
             self.preview_container.pack(fill="x", padx=18, pady=(12, 8))
         else:
             self.preview_container.pack_forget()
@@ -613,8 +624,8 @@ class ShortcutsPage(ctk.CTkScrollableFrame):
         
         labels = {
             "toggle_window": "Mostrar/Esconder (Ctrl+Alt+H)",
-            "toggle_screenshare": "Toggle Anti-Share (Ctrl+Alt+T)",
-            "show_chat": "Abrir Chat (Ctrl+Alt+D)",
+            "toggle_screenshare": "Toggle Anti-Share (T)",
+            "show_chat": "Abrir Chat (C)",
             "take_print": "Print Silencioso (Ctrl+Alt+S)",
             "toggle_mic": "Microfone (Ctrl+Alt+M)",
             "clear_chat": "Limpar Chat (Ctrl+Alt+C)",
@@ -625,8 +636,9 @@ class ShortcutsPage(ctk.CTkScrollableFrame):
         for k, txt in labels.items():
             card = ctk.CTkFrame(self, fg_color=COLORS["card"], corner_radius=12)
             card.grid(row=row_idx, column=0, sticky="ew", padx=20, pady=8)
-            card.grid_columnconfigure(0, weight=1)
+            card.grid_columnconfigure(0, weight=1) 
 
+            # Frame interno para segurar label e input
             content_frame = ctk.CTkFrame(card, fg_color="transparent")
             content_frame.pack(fill="x", padx=10, pady=10)
 
