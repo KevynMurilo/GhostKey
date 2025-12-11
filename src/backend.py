@@ -26,12 +26,17 @@ class ConfigManager:
             },
             "hotkeys": {
                 "toggle_window": "ctrl+alt+h",
+                "toggle_screenshare": "ctrl+alt+t",
+                "show_chat": "ctrl+alt+c",
                 "take_print": "ctrl+alt+s",
                 "toggle_mic": "ctrl+alt+m",
                 "clear_chat": "ctrl+alt+c",
                 "focus_input": "ctrl+alt+i"
             },
-            "settings": {"font_size": 14}
+            "settings": {
+                "font_size": 14,
+                "anti_screenshare": True
+            }
         }
         self.data = self.load()
 
