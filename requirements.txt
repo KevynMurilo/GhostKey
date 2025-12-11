@@ -1,0 +1,9 @@
+customtkinter
+openai
+google-generativeai
+Pillow
+pyautogui
+SpeechRecognition
+pyaudio
+keyboard
+packaging

@@ -1,0 +1,44 @@
+# Python
+# ==================================
+# Ambientes Virtuais
+.venv/
+venv/
+env/
+
+# Arquivos de bytecode
+*.pyc
+__pycache__/
+
+# Dependências (se geradas automaticamente, mas geralmente não são ignoradas)
+# eggs/
+# *.egg
+# *.whl
+
+# Build (PyInstaller, etc.)
+# ==================================
+build/
+dist/
+*.spec
+
+# Logs e Dados de Configuração
+# ==================================
+# Arquivos de log
+*.log
+
+# Dados de Configuração e Chaves de API (EXCLUIR SEMPRE)
+ghost_config.json 
+*.env
+.vscode/
+
+# IDEs
+# ==================================
+.idea/
+.vscode/
+
+# Sistema Operacional
+# ==================================
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
