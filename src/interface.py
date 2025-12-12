@@ -63,7 +63,8 @@ class GhostApp(ctk.CTk):
         self.minsize(780, 580)
         self.attributes("-topmost", True)
         self.attributes("-alpha", 0.98)
-        self.configure(fg_color=COLORS["bg"])
+
+        self.configure(fg_color=COLORS["bg"], bg=COLORS["bg"])
 
     def apply_protection_to_hwnd(self, hwnd, enabled):
         try:
@@ -122,7 +123,9 @@ class GhostApp(ctk.CTk):
         self.show_page("chat")
         
         self.toast = ctk.CTkLabel(self, text="", fg_color=COLORS["success"], text_color="white", height=35, corner_radius=8)
-        self.pages["chat"].update_models()
+        
+        # Agendar update_models para garantir que todos os widgets no ChatPage sejam criados.
+        self.after(50, self.pages["chat"].update_models)
 
     def show_toast(self, msg, error=False):
         col = COLORS["danger"] if error else COLORS["success"]
@@ -241,9 +244,11 @@ class Sidebar(ctk.CTkFrame):
         self.anti_toggle = ctk.CTkButton(
             sl_frame, text="", width=40, height=40, corner_radius=20, 
             font=("Arial", 14), command=self.master.toggle_screenshare,
-            border_width=2, fg_color="transparent"
+            border_width=2, fg_color="transparent",
+            cursor="arrow"
         )
         self.anti_toggle.pack(pady=(0, 12))
+        
         self.update_anti_toggle_btn(self.master.anti_screenshare)
         
         ctk.CTkLabel(sl_frame, text="Anti-Share", text_color=COLORS["text_dim"], 
@@ -277,7 +282,8 @@ class Sidebar(ctk.CTkFrame):
             self, text=emoji, fg_color="transparent", hover_color=COLORS["card"], 
             width=60, height=50, font=("Arial", 18, "bold"), corner_radius=12, 
             text_color=COLORS["text"], command=lambda: self.master.show_page(page),
-            border_width=1, border_color=COLORS["sidebar"]
+            border_width=1, border_color=COLORS["sidebar"],
+            cursor="arrow"
         )
         btn.pack(pady=4, padx=4)
         self.btns[page] = btn
@@ -325,11 +331,11 @@ class ChatPage(ctk.CTkFrame):
         self.model_selector_btn = ctk.CTkButton(
             self.header_frame, textvariable=self.current_model, width=200, height=38, 
             fg_color=COLORS["input"], hover_color=COLORS["primary"], text_color="white",
-            font=("Arial", 12, "bold"), command=self.toggle_model_select_panel
+            font=("Arial", 12, "bold"), command=self.toggle_model_select_panel,
+            cursor="arrow"
         )
         self.model_selector_btn.grid(row=0, column=0, padx=(20, 10), pady=13, sticky="w")
         
-        # Painel de Seleção de Modelo (Flutuante Interno)
         self.model_select_panel = ctk.CTkFrame(self, fg_color=COLORS["card"], corner_radius=12, border_width=1, border_color=COLORS["primary"])
         self.model_select_panel.place_forget() 
         
@@ -341,12 +347,14 @@ class ChatPage(ctk.CTkFrame):
         self.vision_badge.grid(row=0, column=0, padx=(230, 0), pady=13, sticky="w") 
 
         # Clear button
-        ctk.CTkButton(
+        clear_btn = ctk.CTkButton(
             self.header_frame, text="🗑️ LIMPAR", width=90, height=38, 
             fg_color=COLORS["danger"], hover_color="#dc2626",
             font=("Arial", 11, "bold"), command=self.clear,
-            corner_radius=10
-        ).grid(row=0, column=2, padx=20, pady=13, sticky="e")
+            corner_radius=10,
+            cursor="arrow"
+        )
+        clear_btn.grid(row=0, column=2, padx=20, pady=13, sticky="e")
         
         # 1b. Quick prompts (Row 1 da header_area)
         prompts_frame = ctk.CTkFrame(header_area, fg_color="transparent", height=45)
@@ -362,12 +370,14 @@ class ChatPage(ctk.CTkFrame):
         
         for i, (lbl, txt) in enumerate(prompts):
             prompts_frame.grid_columnconfigure(i, weight=1) 
-            ctk.CTkButton(
+            prompt_btn = ctk.CTkButton(
                 prompts_frame, text=lbl, width=85, height=32, 
                 fg_color=COLORS["card"], hover_color=COLORS["input"],
                 font=("Arial", 10, "bold"), command=lambda t=txt: self.insert_prompt(t),
-                corner_radius=8
-            ).grid(row=0, column=i, padx=(0 if i==0 else 6, 0), sticky="ew")
+                corner_radius=8,
+                cursor="arrow"
+            )
+            prompt_btn.grid(row=0, column=i, padx=(0 if i==0 else 6, 0), sticky="ew")
         
         # 2. Chat Content Area (Row 1)
         self.content_frame = ctk.CTkFrame(self, fg_color=COLORS["card"], corner_radius=16)
@@ -391,13 +401,14 @@ class ChatPage(ctk.CTkFrame):
         self.preview_container = ctk.CTkFrame(input_bg, fg_color=COLORS["input"], corner_radius=12, height=45)
         self.prev_lbl = ctk.CTkLabel(self.preview_container, text="📸 IMAGEM PRONTA", text_color=COLORS["success"], font=("Arial", 11, "bold"))
         self.prev_lbl.pack(side="left", padx=15, pady=12)
-        self.del_img_btn = ctk.CTkButton(
+        del_img_btn = ctk.CTkButton(
             self.preview_container, text="✕", width=28, height=28, 
             fg_color="transparent", text_color=COLORS["danger"], 
             hover_color=COLORS["danger"], command=self.remove_image,
-            font=("Arial", 14, "bold"), corner_radius=14
+            font=("Arial", 14, "bold"), corner_radius=14,
+            cursor="arrow"
         )
-        self.del_img_btn.pack(side="right", padx=15, pady=12)
+        del_img_btn.pack(side="right", padx=15, pady=12)
         
         # 3b. Input controls
         ctrl = ctk.CTkFrame(input_bg, fg_color="transparent")
@@ -406,14 +417,16 @@ class ChatPage(ctk.CTkFrame):
         self.cam_btn = ctk.CTkButton(
             ctrl, text="📷", width=42, height=42, fg_color=COLORS["input"], 
             hover_color=COLORS["primary"], corner_radius=21, 
-            command=controller.silent_print, font=("Arial", 16)
+            command=controller.silent_print, font=("Arial", 16),
+            cursor="arrow"
         )
         self.cam_btn.pack(side="left", padx=(0, 8))
         
         self.mic_btn = ctk.CTkButton(
             ctrl, text="🎤", width=42, height=42, fg_color=COLORS["input"], 
             hover_color=COLORS["primary"], corner_radius=21, 
-            command=self.mic_action, font=("Arial", 16)
+            command=self.mic_action, font=("Arial", 16),
+            cursor="arrow"
         )
         self.mic_btn.pack(side="left", padx=(0, 12))
         
@@ -427,7 +440,8 @@ class ChatPage(ctk.CTkFrame):
         send_btn = ctk.CTkButton(
             ctrl, text="➤", width=48, height=42, fg_color=COLORS["primary"], 
             hover_color=COLORS["primary_hover"], corner_radius=21, 
-            command=self.send, font=("Arial", 18, "bold"), text_color="white"
+            command=self.send, font=("Arial", 18, "bold"), text_color="white",
+            cursor="arrow"
         )
         send_btn.pack(side="right")
 
@@ -437,9 +451,8 @@ class ChatPage(ctk.CTkFrame):
             self.model_select_panel.place_forget()
         else:
             x_pos = 20 
-            
             y_pos = 65 
-          
+            
             self.model_select_panel.place(x=x_pos, y=y_pos, anchor="nw")
             
             self.model_select_panel.lift() 
@@ -462,7 +475,8 @@ class ChatPage(ctk.CTkFrame):
                 fg_color=COLORS["input"] if model_name != self.current_model.get() else COLORS["primary"],
                 hover_color=COLORS["primary_hover"],
                 text_color="white", font=FONTS["body"],
-                command=lambda m=model_name: self.select_model(m)
+                command=lambda m=model_name: self.select_model(m),
+                cursor="arrow"
             )
             btn.pack(padx=10, pady=(5, 5))
             
@@ -495,10 +509,10 @@ class ChatPage(ctk.CTkFrame):
             self.insert_initial_message(model_name)
         
         if has_vision:
-            self.cam_btn.configure(state="normal", fg_color=COLORS["input"], hover_color=COLORS["primary"])
+            self.cam_btn.configure(state="normal", fg_color=COLORS["input"], hover_color=COLORS["primary"], cursor="arrow")
             self.vision_badge.configure(text="👁️ VISION", text_color=COLORS["success"])
         else:
-            self.cam_btn.configure(state="disabled", fg_color=COLORS["disabled"], hover_color=COLORS["disabled"])
+            self.cam_btn.configure(state="disabled", fg_color=COLORS["disabled"], hover_color=COLORS["disabled"], cursor="arrow")
             self.vision_badge.configure(text="📝 TEXT ONLY", text_color=COLORS["text_dim"])
             self.remove_image()
 
@@ -634,7 +648,8 @@ class ConfigPage(ctk.CTkScrollableFrame):
         save_btn = ctk.CTkButton(
             self, text="💾 SALVAR ALTERAÇÕES", fg_color=COLORS["primary"], 
             hover_color=COLORS["primary_hover"], height=50, font=("Arial", 14, "bold"),
-            command=self.save, corner_radius=12
+            command=self.save, corner_radius=12,
+            cursor="arrow"
         )
         save_btn.grid(row=row_idx, column=0, sticky="ew", padx=20, pady=(30, 40))
 
@@ -700,7 +715,8 @@ class ShortcutsPage(ctk.CTkScrollableFrame):
         save_btn = ctk.CTkButton(
             self, text="🔄 ATUALIZAR ATALHOS", fg_color=COLORS["primary"], 
             hover_color=COLORS["primary_hover"], height=50, font=("Arial", 14, "bold"),
-            command=self.save, corner_radius=12
+            command=self.save, corner_radius=12,
+            cursor="arrow"
         )
         save_btn.grid(row=row_idx, column=0, sticky="ew", padx=20, pady=(40, 60))
 
