@@ -394,6 +394,19 @@ class ChatPage(ctk.CTkFrame):
         )
         self.box.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
         
+        # INDICADOR DE LOADING/PROCESSAMENTO 
+        self.loading_bar = ctk.CTkProgressBar(
+            self.content_frame, 
+            mode="indeterminate", 
+            height=6, 
+            width=500,
+            fg_color=COLORS["input"], 
+            progress_color=COLORS["primary"]
+        )
+        self.loading_bar.set(0)
+        self.loading_bar.place_forget() 
+
+        
         # 3. Input Area (Row 2)
         input_bg = ctk.CTkFrame(self, fg_color=COLORS["card"], corner_radius=16)
         input_bg.grid(row=2, column=0, sticky="ew", padx=0, pady=0)
@@ -581,12 +594,23 @@ class ChatPage(ctk.CTkFrame):
 
         self.entry.delete(0, "end")
         self.remove_image()
+        
+        # 1. Mostrar Loading Bar
+        self.loading_bar.lift()
+        self.loading_bar.place(relx=0.04, rely=0.98, relwidth=0.92, anchor="sw") 
+        self.loading_bar.start()
+
+        # 2. Iniciar Geração
         threading.Thread(target=self._gen, args=(prov, conf, prompt, img), daemon=True).start()
 
     def _gen(self, prov, conf, prompt, img):
         self.entry.configure(state="disabled")
         resp = AIEngine.generate(prov, conf, prompt, img)
         
+        # 3. Parar e Esconder Loading Bar
+        self.loading_bar.stop()
+        self.loading_bar.place_forget()
+
         self.box.configure(state="normal")
         self.box.insert("end", f"\n🤖 {prov.upper()}:\n{resp}\n" + "─" * 50 + "\n")
         self.box.see("end")
