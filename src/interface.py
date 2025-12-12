@@ -4,7 +4,8 @@ import time
 import keyboard
 import os
 import sys
-from ctypes import windll, wintypes, byref, c_int, WINFUNCTYPE
+from ctypes import windll, wintypes, byref, c_int, WINFUNCTYPE, c_ubyte, c_long
+
 from src.theme import COLORS, FONTS
 from src.backend import ConfigManager, HardwareTools, AIEngine
 
@@ -20,13 +21,14 @@ ctk.set_default_color_theme("blue")
 
 WDA_NONE = 0
 WDA_EXCLUDEFROMCAPTURE = 0x11
-SetWindowDisplayAffinity = windll.user32.SetWindowDisplayAffinity
-SetWindowDisplayAffinity.argtypes = [wintypes.HWND, wintypes.DWORD]
-SetWindowDisplayAffinity.restype = wintypes.BOOL
-
 GWL_EXSTYLE = -20
 WS_EX_APPWINDOW = 0x00040000
 WS_EX_TOOLWINDOW = 0x00000080
+
+SetWindowDisplayAffinity = windll.user32.SetWindowDisplayAffinity
+GetWindowLongW = windll.user32.GetWindowLongW
+SetWindowLongW = windll.user32.SetWindowLongW
+
 
 EnumWindows = windll.user32.EnumWindows
 EnumWindowsProc = WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
@@ -63,25 +65,25 @@ class GhostApp(ctk.CTk):
         self.minsize(780, 580)
         self.attributes("-topmost", True)
         self.attributes("-alpha", 0.98)
-
+        
         self.configure(fg_color=COLORS["bg"], bg=COLORS["bg"])
 
     def apply_protection_to_hwnd(self, hwnd, enabled):
         try:
+            current_style = GetWindowLongW(hwnd, GWL_EXSTYLE)
+            
             if enabled:
                 SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
                 
-                style = windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-                style = style & ~WS_EX_APPWINDOW
-                style = style | WS_EX_TOOLWINDOW
+                new_style = current_style & ~WS_EX_APPWINDOW
+                new_style = new_style | WS_EX_TOOLWINDOW
             else:
                 SetWindowDisplayAffinity(hwnd, WDA_NONE)
                 
-                style = windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-                style = style | WS_EX_APPWINDOW
-                style = style & ~WS_EX_TOOLWINDOW
-
-            windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style)
+                new_style = current_style | WS_EX_TOOLWINDOW
+                
+            SetWindowLongW(hwnd, GWL_EXSTYLE, new_style)
+            
             return True
         except Exception as e:
             return False
@@ -99,7 +101,7 @@ class GhostApp(ctk.CTk):
 
         EnumWindows(EnumWindowsProc(enum_windows_callback), 0)
         
-        self.after(1000, self.apply_window_protection)
+        self.after(100, self.apply_window_protection)
 
     def setup_layout(self):
         self.grid_columnconfigure(0, weight=0)
@@ -124,7 +126,6 @@ class GhostApp(ctk.CTk):
         
         self.toast = ctk.CTkLabel(self, text="", fg_color=COLORS["success"], text_color="white", height=35, corner_radius=8)
         
-        # Agendar update_models para garantir que todos os widgets no ChatPage sejam criados.
         self.after(50, self.pages["chat"].update_models)
 
     def show_toast(self, msg, error=False):
