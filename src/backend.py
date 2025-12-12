@@ -109,7 +109,7 @@ class AIEngine:
                 
                 elif image and provider in ["deepseek", "perplexity"]:
                     return f"[SISTEMA: A API do {provider.upper()} não aceita imagens. Use GEMINI ou GPT para prints.]\n\n" + \
-                           client.chat.completions.create(model=model, messages=[{"role": "user", "content": prompt}]).choices[0].message.content
+                                client.chat.completions.create(model=model, messages=[{"role": "user", "content": prompt}]).choices[0].message.content
 
                 return client.chat.completions.create(model=model, messages=msgs).choices[0].message.content
 

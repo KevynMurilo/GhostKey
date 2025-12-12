@@ -47,7 +47,6 @@ class GhostApp(ctk.CTk):
         self.deiconify()
         self.visible_state = True
         
-        # Inicia a proteção da janela 
         self.after(10, self.apply_window_protection)
 
     def setup_window(self):
@@ -69,18 +68,14 @@ class GhostApp(ctk.CTk):
     def apply_protection_to_hwnd(self, hwnd, enabled):
         try:
             if enabled:
-                # 1. Aplica WDA_EXCLUDEFROMCAPTURE para desativar screenshare
                 SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
                 
-                # 2. Configura como Tool Window para evitar que apareça na taskbar (opcional)
                 style = windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
                 style = style & ~WS_EX_APPWINDOW
                 style = style | WS_EX_TOOLWINDOW
             else:
-                # 1. Retorna para o modo normal (visível para screenshare)
                 SetWindowDisplayAffinity(hwnd, WDA_NONE)
                 
-                # 2. Retorna para o modo App Window (visível na taskbar, modo normal)
                 style = windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
                 style = style | WS_EX_APPWINDOW
                 style = style & ~WS_EX_TOOLWINDOW
@@ -88,7 +83,6 @@ class GhostApp(ctk.CTk):
             windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style)
             return True
         except Exception as e:
-            # print(f"Error applying protection to HWND {hwnd}: {e}")
             return False
 
     def apply_window_protection(self):
@@ -98,19 +92,15 @@ class GhostApp(ctk.CTk):
             pid = wintypes.DWORD()
             GetWindowThreadProcessId(hwnd, byref(pid))
             
-            # Aplica a proteção a todos os HWNDs (incluindo popups/dropdowns) do processo atual.
             if pid.value == current_pid:
                 self.apply_protection_to_hwnd(hwnd, self.anti_screenshare)
             return True
 
-        # Itera sobre todas as janelas do processo atual (incluindo janelas pop-up como dropdowns)
         EnumWindows(EnumWindowsProc(enum_windows_callback), 0)
         
-        # Continua verificando e aplicando a proteção periodicamente
         self.after(1000, self.apply_window_protection)
 
     def setup_layout(self):
-        # Configuração da grade principal: Coluna 0 (Sidebar) é fixa, Coluna 1 (Conteúdo) é responsiva.
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -121,7 +111,6 @@ class GhostApp(ctk.CTk):
         self.container = ctk.CTkFrame(self, fg_color="transparent")
         self.container.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
         
-        # Configurar a grade do container para que o conteúdo seja totalmente responsivo
         self.container.grid_columnconfigure(0, weight=1)
         self.container.grid_rowconfigure(0, weight=1)
         
@@ -188,7 +177,6 @@ class GhostApp(ctk.CTk):
             self.show_toast("Aplicativo restaurado.")
 
     def show_chat_page(self):
-        """C - Abre página do chat"""
         self.deiconify()
         self.visible_state = True
         self.show_page("chat")
@@ -196,13 +184,11 @@ class GhostApp(ctk.CTk):
         self.show_toast("💬 Chat aberto!")
 
     def toggle_screenshare(self):
-        """T ou Botão toggle - Liga/Desliga proteção"""
         self.anti_screenshare = not self.anti_screenshare
         self.sidebar.update_anti_toggle_btn(self.anti_screenshare)
         self.cfg.data["settings"]["anti_screenshare"] = self.anti_screenshare
         self.cfg.save(self.cfg.data)
         
-        # Executa a aplicação imediata da proteção
         self.apply_window_protection()
 
         if self.anti_screenshare:
@@ -243,15 +229,12 @@ class Sidebar(ctk.CTkFrame):
         self.master = master
         self.btns = {}
         
-        # Logo
         ctk.CTkLabel(self, text="👻", font=("Arial", 28), text_color=COLORS["primary"]).pack(pady=(25, 20))
         
-        # Navigation buttons
         self.add_btn("💬", "chat")
         self.add_btn("⚙️", "config") 
         self.add_btn("⌨️", "keys")
         
-        # Bottom controls
         sl_frame = ctk.CTkFrame(self, fg_color="transparent")
         sl_frame.pack(side="bottom", fill="x", pady=25)
         
@@ -264,9 +247,8 @@ class Sidebar(ctk.CTkFrame):
         self.update_anti_toggle_btn(self.master.anti_screenshare)
         
         ctk.CTkLabel(sl_frame, text="Anti-Share", text_color=COLORS["text_dim"], 
-                     font=("Arial", 9)).pack(pady=(0, 8))
+                             font=("Arial", 9)).pack(pady=(0, 8))
         
-        # Opacity slider (Corrigido para usar COLORS["sidebar"] e evitar o erro "transparency is not allowed")
         self.opacity_slider = ctk.CTkSlider(
             sl_frame, from_=0.3, to=1.0, orientation="vertical", height=90, 
             command=lambda v: master.attributes("-alpha", v), 
@@ -291,12 +273,11 @@ class Sidebar(ctk.CTkFrame):
             )
 
     def add_btn(self, emoji, page):
-        # Corrigido para usar COLORS["sidebar"] e evitar o erro "transparency is not allowed"
         btn = ctk.CTkButton(
             self, text=emoji, fg_color="transparent", hover_color=COLORS["card"], 
             width=60, height=50, font=("Arial", 18, "bold"), corner_radius=12, 
             text_color=COLORS["text"], command=lambda: self.master.show_page(page),
-            border_width=1, border_color=COLORS["sidebar"] 
+            border_width=1, border_color=COLORS["sidebar"]
         )
         btn.pack(pady=4, padx=4)
         self.btns[page] = btn
@@ -314,18 +295,17 @@ class Sidebar(ctk.CTkFrame):
                     hover_color=COLORS["card"], border_color=COLORS["sidebar"] 
                 )
 
-# --- ChatPage: Layout responsivo e clean ---
 class ChatPage(ctk.CTkFrame): 
     def __init__(self, parent, controller):
         super().__init__(parent, fg_color="transparent")
         self.controller = controller
         self.supports_vision = True
+        self.current_model = ctk.StringVar(value="OFF")
         
-        # Configurar grid da ChatPage para 3 linhas principais
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=0) # Header + Prompts (Fixo)
-        self.grid_rowconfigure(1, weight=1) # Chat Content Area (Expande)
-        self.grid_rowconfigure(2, weight=0) # Input Area (Fixo)
+        self.grid_rowconfigure(0, weight=0)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=0)
 
         # 1. Header Area (Row 0)
         header_area = ctk.CTkFrame(self, fg_color="transparent")
@@ -336,35 +316,33 @@ class ChatPage(ctk.CTkFrame):
         header_area.grid_rowconfigure(1, weight=0)
 
         # 1a. Header Principal (Model Selector, Vision Badge, Clear Button)
-        header_frame = ctk.CTkFrame(header_area, fg_color=COLORS["card"], height=65, corner_radius=12)
-        header_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=0, pady=0)
-        header_frame.grid_columnconfigure(0, weight=0) # Combo/Badge
-        header_frame.grid_columnconfigure(1, weight=1) # Espaço
-        header_frame.grid_columnconfigure(2, weight=0) # Clear
+        self.header_frame = ctk.CTkFrame(header_area, fg_color=COLORS["card"], height=65, corner_radius=12)
+        self.header_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=0, pady=0)
+        self.header_frame.grid_columnconfigure(0, weight=0)
+        self.header_frame.grid_columnconfigure(1, weight=1)
+        self.header_frame.grid_columnconfigure(2, weight=0)
 
-        # Model selector
-        self.combo = ctk.CTkOptionMenu(
-            header_frame, width=200, height=38, 
-            fg_color=COLORS["input"], button_color=COLORS["input"],
-            button_hover_color=COLORS["primary"], text_color="white",
-            dropdown_fg_color=COLORS["card"], dropdown_text_color="white",
-            font=("Arial", 12, "bold"), command=self.on_model_change
+        self.model_selector_btn = ctk.CTkButton(
+            self.header_frame, textvariable=self.current_model, width=200, height=38, 
+            fg_color=COLORS["input"], hover_color=COLORS["primary"], text_color="white",
+            font=("Arial", 12, "bold"), command=self.toggle_model_select_panel
         )
-        self.combo.grid(row=0, column=0, padx=(20, 10), pady=13, sticky="w")
+        self.model_selector_btn.grid(row=0, column=0, padx=(20, 10), pady=13, sticky="w")
         
-        # CORREÇÃO: Dispara a proteção da tela para incluir o dropdown pop-up no screenshare.
-        self.combo.bind("<Button-1>", lambda event: self.controller.after(10, self.controller.apply_window_protection))
-
+        # Painel de Seleção de Modelo (Flutuante Interno)
+        self.model_select_panel = ctk.CTkFrame(self, fg_color=COLORS["card"], corner_radius=12, border_width=1, border_color=COLORS["primary"])
+        self.model_select_panel.place_forget() 
+        
         # Vision badge
         self.vision_badge = ctk.CTkLabel(
-            header_frame, text="👁️ VISION", text_color=COLORS["success"], 
+            self.header_frame, text="👁️ VISION", text_color=COLORS["success"], 
             font=("Arial", 10, "bold"), fg_color="transparent"
         )
         self.vision_badge.grid(row=0, column=0, padx=(230, 0), pady=13, sticky="w") 
 
         # Clear button
         ctk.CTkButton(
-            header_frame, text="🗑️ LIMPAR", width=90, height=38, 
+            self.header_frame, text="🗑️ LIMPAR", width=90, height=38, 
             fg_color=COLORS["danger"], hover_color="#dc2626",
             font=("Arial", 11, "bold"), command=self.clear,
             corner_radius=10
@@ -392,15 +370,16 @@ class ChatPage(ctk.CTkFrame):
             ).grid(row=0, column=i, padx=(0 if i==0 else 6, 0), sticky="ew")
         
         # 2. Chat Content Area (Row 1)
-        content_frame = ctk.CTkFrame(self, fg_color=COLORS["card"], corner_radius=16)
-        content_frame.grid(row=1, column=0, sticky="nsew", padx=0, pady=15)
-        content_frame.grid_columnconfigure(0, weight=1)
-        content_frame.grid_rowconfigure(0, weight=1)
+        self.content_frame = ctk.CTkFrame(self, fg_color=COLORS["card"], corner_radius=16)
+        self.content_frame.grid(row=1, column=0, sticky="nsew", padx=0, pady=15)
+        self.content_frame.grid_columnconfigure(0, weight=1)
+        self.content_frame.grid_rowconfigure(0, weight=1)
         
         self.box = ctk.CTkTextbox(
-            content_frame, font=FONTS["mono_sm"], 
+            self.content_frame, font=FONTS["mono_sm"], 
             fg_color=COLORS["terminal_bg"], text_color=COLORS["terminal_text"],
-            border_width=0, corner_radius=12, padx=15, pady=15
+            border_width=0, corner_radius=12, padx=15, pady=15,
+            state="disabled"
         )
         self.box.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
         
@@ -452,20 +431,69 @@ class ChatPage(ctk.CTkFrame):
         )
         send_btn.pack(side="right")
 
+    def toggle_model_select_panel(self):
+        """Alterna a visibilidade do painel de seleção de modelo seguro e o posiciona corretamente."""
+        if self.model_select_panel.winfo_ismapped():
+            self.model_select_panel.place_forget()
+        else:
+            x_pos = 20 
+            
+            y_pos = 65 
+          
+            self.model_select_panel.place(x=x_pos, y=y_pos, anchor="nw")
+            
+            self.model_select_panel.lift() 
+            self.populate_model_select_panel()
+
+    def populate_model_select_panel(self):
+        """Preenche o painel de seleção com botões dos modelos disponíveis."""
+        for widget in self.model_select_panel.winfo_children():
+            widget.destroy()
+
+        vals = [f"{k.upper()}" for k, v in self.controller.cfg.data["providers"].items() if v["enabled"]]
+        
+        if not vals:
+            ctk.CTkLabel(self.model_select_panel, text="Nenhuma IA Ativa", text_color=COLORS["danger"], font=FONTS["body"]).pack(padx=20, pady=10)
+            return
+
+        for model_name in vals:
+            btn = ctk.CTkButton(
+                self.model_select_panel, text=model_name, width=180, height=30,
+                fg_color=COLORS["input"] if model_name != self.current_model.get() else COLORS["primary"],
+                hover_color=COLORS["primary_hover"],
+                text_color="white", font=FONTS["body"],
+                command=lambda m=model_name: self.select_model(m)
+            )
+            btn.pack(padx=10, pady=(5, 5))
+            
+    def select_model(self, model_name):
+        """Define o modelo selecionado e fecha o painel."""
+        self.current_model.set(model_name)
+        self.on_model_change(model_name)
+        self.model_select_panel.place_forget()
+
     def update_models(self):
         vals = [f"{k.upper()}" for k, v in self.controller.cfg.data["providers"].items() if v["enabled"]]
-        self.combo.configure(values=vals if vals else ["OFF"])
-        if vals:
-            self.combo.set(vals[0])
-            self.on_model_change(vals[0])
-        else:
-            self.combo.set("OFF")
-            self.on_model_change("OFF")
+        
+        if vals and self.current_model.get() not in vals:
+             self.current_model.set(vals[0])
+        elif not vals:
+            self.current_model.set("OFF")
+
+        self.on_model_change(self.current_model.get())
 
     def on_model_change(self, choice):
         model_name = choice.upper()
         has_vision = "GEMINI" in model_name or "GPT" in model_name
         self.supports_vision = has_vision
+        
+        self.model_selector_btn.configure(text=model_name)
+        
+        self.clear(update_toast=False)
+        
+        if model_name != "OFF":
+            self.insert_initial_message(model_name)
+        
         if has_vision:
             self.cam_btn.configure(state="normal", fg_color=COLORS["input"], hover_color=COLORS["primary"])
             self.vision_badge.configure(text="👁️ VISION", text_color=COLORS["success"])
@@ -473,6 +501,14 @@ class ChatPage(ctk.CTkFrame):
             self.cam_btn.configure(state="disabled", fg_color=COLORS["disabled"], hover_color=COLORS["disabled"])
             self.vision_badge.configure(text="📝 TEXT ONLY", text_color=COLORS["text_dim"])
             self.remove_image()
+
+    def insert_initial_message(self, model_name):
+        msg = f"[SISTEMA] 🤖 {model_name} está pronto(a)! "
+        msg += "Envie um prompt ou pressione Ctrl+Alt+S para um Print Silencioso. "
+        msg += "O histórico aparecerá aqui.\n" + "─" * 50 + "\n"
+        self.box.configure(state="normal")
+        self.box.insert("end", msg)
+        self.box.configure(state="disabled")
 
     def update_preview(self, has_img):
         if has_img:
@@ -500,48 +536,56 @@ class ChatPage(ctk.CTkFrame):
             self.entry.insert(0, txt)
         self.mic_btn.configure(fg_color=COLORS["input"])
 
-    def clear(self):
+    def clear(self, update_toast=True):
+        self.box.configure(state="normal")
         self.box.delete("1.0", "end")
+        self.box.configure(state="disabled")
         self.remove_image()
-        self.controller.show_toast("🗑️ Chat limpo!")
+        if update_toast:
+            self.controller.show_toast("🗑️ Chat limpo!")
 
     def send(self):
         prompt = self.entry.get().strip()
         img = self.controller.img_cache
         if not prompt and not img:
             return
-        val = self.combo.get()
+        val = self.current_model.get()
         if "OFF" in val:
             self.controller.show_toast("Nenhuma IA ativa!", error=True)
             return
         prov = val.lower()
         conf = self.controller.cfg.data["providers"][prov]
+        
+        self.box.configure(state="normal")
         self.box.insert("end", f"\n👤: {prompt}")
         if img:
             self.box.insert("end", " [📸]")
         self.box.insert("end", "\n")
+        self.box.see("end")
+        self.box.configure(state="disabled")
+
         self.entry.delete(0, "end")
         self.remove_image()
-        self.box.see("end")
         threading.Thread(target=self._gen, args=(prov, conf, prompt, img), daemon=True).start()
 
     def _gen(self, prov, conf, prompt, img):
-        # Desabilita o input enquanto gera
         self.entry.configure(state="disabled")
         resp = AIEngine.generate(prov, conf, prompt, img)
+        
+        self.box.configure(state="normal")
         self.box.insert("end", f"\n🤖 {prov.upper()}:\n{resp}\n" + "─" * 50 + "\n")
         self.box.see("end")
+        self.box.configure(state="disabled")
+        
         self.entry.configure(state="normal")
 
 
-# --- ConfigPage: Layout responsivo ---
 class ConfigPage(ctk.CTkScrollableFrame):
     def __init__(self, parent, controller):
         super().__init__(parent, fg_color="transparent")
         self.controller = controller
         self.inputs = {}
         
-        # Configurar coluna principal para expandir
         self.grid_columnconfigure(0, weight=1)
 
         title = ctk.CTkLabel(self, text="⚙️ CONFIGURAÇÃO DE IAs", font=FONTS["h2"], text_color="white")
@@ -557,7 +601,7 @@ class ConfigPage(ctk.CTkScrollableFrame):
             header.grid(row=0, column=0, sticky="ew", padx=0, pady=(15, 10))
             
             ctk.CTkLabel(header, text=pid.upper(), font=("Arial", 14, "bold"), 
-                         text_color="white").pack(side="left", padx=20)
+                             text_color="white").pack(side="left", padx=20)
             
             sw = ctk.CTkSwitch(
                 header, text="", progress_color=COLORS["primary"], 
@@ -604,7 +648,6 @@ class ConfigPage(ctk.CTkScrollableFrame):
         self.controller.pages["chat"].update_models()
         self.controller.show_toast("💾 SALVO!" if success else "❌ ERRO!", error=not success)
 
-# --- ShortcutsPage: Layout responsivo ---
 class ShortcutsPage(ctk.CTkScrollableFrame):
     def __init__(self, parent, controller):
         super().__init__(parent, fg_color="transparent")
@@ -638,12 +681,11 @@ class ShortcutsPage(ctk.CTkScrollableFrame):
             card.grid(row=row_idx, column=0, sticky="ew", padx=20, pady=8)
             card.grid_columnconfigure(0, weight=1) 
 
-            # Frame interno para segurar label e input
             content_frame = ctk.CTkFrame(card, fg_color="transparent")
             content_frame.pack(fill="x", padx=10, pady=10)
 
             ctk.CTkLabel(content_frame, text=txt, font=("Arial", 12, "bold"), 
-                         anchor="w").pack(side="left", padx=10)
+                             anchor="w").pack(side="left", padx=10)
             
             e = ctk.CTkEntry(
                 content_frame, width=200, font=("Consolas", 13, "bold"), 
